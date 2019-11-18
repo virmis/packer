@@ -1,0 +1,18 @@
+[Unit]
+Description=Prometheus Server
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+User=prometheus
+Group=prometheus
+LimitNOFILE=65536
+EnvironmentFile=-/etc/sysconfig/prometheus
+ExecStart=/usr/sbin/prometheus $OPTIONS --web.console.libraries /usr/lib64/console_libraries --web.console.templates /usr/lib64/consoles
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGTERM
+Restart=on-failure
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

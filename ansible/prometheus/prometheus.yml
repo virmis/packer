@@ -1,0 +1,139 @@
+---
+
+- name: setup prometheus server
+  hosts: all
+  gather_facts: yes
+  become: yes
+
+  vars:
+    ebs_disk_name: /dev/xvde
+    prometheus_user: prometheus
+    prometheus_group: prometheus
+    prometheus_version: 2.14.0
+    prometheus_conf_dir: /etc/prometheus
+    prometheus_data_dir: /var/lib/prometheus/data
+    prometheus_consoles_dir: /usr/lib64/consoles
+    prometheus_console_lib_dir: /usr/lib64/console_libraries
+    src_dir: /tmp/src
+    src_cfg: "{{src_dir}}/prometheus-{{prometheus_version}}.linux-amd64"
+
+  tasks:
+    - name: create prometheus group
+      group:
+        name: prometheus
+        state: present
+      tags: user
+
+    - name: create promtheus user
+      user:
+        name: "{{prometheus_user}}"
+        group: "{{prometheus_group}}"
+        shell: /sbin/nologin
+        home: /var/lib/prometheus
+      tags: user
+
+    - name: create directories required for prometheus deploy
+      file:
+        path: "{{item.path}}"
+        state: directory
+        owner: "{{item.owner | default('root')}}"
+        group: "{{item.group | default('root')}}"
+        mode: 0755
+      with_items:
+        - {path: "{{src_dir}}"}
+        - {path: "{{prometheus_conf_dir}}"}
+        - {path: "{{prometheus_console_lib_dir}}"}
+        - {path: "{{prometheus_consoles_dir}}"}
+        - {path: "{{prometheus_data_dir}}", owner: prometheus, group: prometheus}
+      tags: directories
+
+    - name: download prometheus binary
+      get_url:
+        url: https://github.com/prometheus/prometheus/releases/download/v{{prometheus_version}}/prometheus-{{prometheus_version}}.linux-amd64.tar.gz
+        dest: "{{src_dir}}"
+        checksum: sha256:https://github.com/prometheus/prometheus/releases/download/v{{prometheus_version}}/sha256sums.txt
+      tags: source
+
+    - name: extract prometheus archive
+      unarchive:
+        src: "{{src_dir}}/prometheus-{{prometheus_version}}.linux-amd64.tar.gz"
+        dest: "{{src_dir}}"
+        remote_src: no
+      tags: source
+
+    - name: copy prometheus config files to directories
+      copy:
+        src: "{{item.src}}"
+        dest: "{{item.dest}}"
+        owner: root
+        group: root
+        mode: "{{item.mode | default('0644')}}"
+        remote_src: no
+      with_items:
+        - {src: "{{src_cfg}}/prometheus.yml",                     dest: "/etc/prometheus/prometheus.yml"}
+        - {src: "{{src_cfg}}/console_libraries/menu.lib",         dest: "{{prometheus_console_lib_dir}}/menu.lib"}
+        - {src: "{{src_cfg}}/console_libraries/prom.lib",         dest: "{{prometheus_console_lib_dir}}/prom.lib"}
+        - {src: "{{src_cfg}}/consoles/index.html.example",        dest: "{{prometheus_consoles_dir}}/index.html.example"}
+        - {src: "{{src_cfg}}/consoles/node-cpu.html",             dest: "{{prometheus_consoles_dir}}/node-cpu.html"}
+        - {src: "{{src_cfg}}/consoles/node-disk.html",            dest: "{{prometheus_consoles_dir}}/node-disk.html"}
+        - {src: "{{src_cfg}}/consoles/node.html",                 dest: "{{prometheus_consoles_dir}}/node.html"}
+        - {src: "{{src_cfg}}/consoles/node-overview.html",        dest: "{{prometheus_consoles_dir}}/node-overview.html"}
+        - {src: "{{src_cfg}}/consoles/prometheus.html",           dest: "{{prometheus_consoles_dir}}/prometheus.html"}
+        - {src: "{{src_cfg}}/consoles/prometheus-overview.html",  dest: "{{prometheus_consoles_dir}}/prometheus-overview.html"}
+        - {src: "{{src_cfg}}/prometheus",                         dest: "/usr/sbin/prometheus", mode: "0755"}
+        - {src: "{{src_cfg}}/promtool",                           dest: "/usr/sbin/promtool", mode: "0755"}
+      tags: source
+
+    - name: delete prometheus source folder
+      file:
+        path: "{{src_dir}}"
+        state: absent
+      tags: source
+
+    - name: copy prometheus sysconfig file
+      copy:
+        src: files/prometheus.sysconfig
+        dest: /etc/sysconfig/prometheus
+        owner: root
+        group: root
+        mode: 0644
+      tags: service
+
+    - name: copy prometheus service file
+      copy:
+        src: files/prometheus.service
+        dest: /usr/lib/systemd/system/prometheus.service
+        owner: root
+        group: root
+        mode: 0644
+      tags: service
+
+    - name: enable prometheus service
+      service:
+        name: prometheus
+        enabled: yes
+      tags: service
+
+    - name: copy firstboot service file
+      copy:
+        src: files/firstboot.service
+        dest: /etc/systemd/system/firstboot.service
+        owner: root
+        group: root
+        mode: 0644
+      tags: service
+
+    - name: enable firstboot service
+      service:
+        name: firstboot.service
+        enabled: yes
+      tags: service
+
+    - name: copy templated firstboot script
+      template:
+        src: templates/firstboot.sh.j2
+        dest: /root/firstboot.sh
+        owner: root
+        group: root
+        mode: 0700
+      tags: service

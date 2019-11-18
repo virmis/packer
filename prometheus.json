@@ -1,0 +1,44 @@
+{
+  "variables": {
+    "aws_profile": "default",
+    "aws_region": "us-east-1",
+    "prometheus_version": "2.14.0"
+  },
+  "builders": [{
+    "profile": "{{user `aws_profile`}}",
+    "type": "amazon-ebs",
+    "encrypt_boot": true,
+    "region": "{{user `aws_region`}}",
+    "source_ami": "ami-00dc79254d0461090",
+    "instance_type": "t2.micro",
+    "ssh_username": "ec2-user",
+    "ami_name": "packer-prometheus-{{user `prometheus_version`}}",
+    "ami_description": "Prometheus systems and service monitoring system",
+    "tags": {
+      "Role": "prometheus"
+    },
+    "ami_block_device_mappings": [{
+      "device_name": "/dev/sde",
+      "volume_size": 10,
+      "volume_type": "gp2",
+      "encrypted": true,
+      "delete_on_termination": false
+    }]
+  }],
+  "provisioners": [{
+    "type": "shell",
+    "inline": [
+      "sudo rpm --import https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7",
+      "sudo rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm",
+      "sudo yum -y update",
+      "sudo yum -y install ansible"
+    ]
+  },
+  {
+    "type": "ansible-local",
+    "playbook_dir": "ansible",
+    "playbook_files": [
+      "ansible/prometheus/prometheus.yml"
+    ]
+  }]
+}

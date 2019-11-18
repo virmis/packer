@@ -1,0 +1,41 @@
+#!/bin/bash
+
+if grep -qs '{{prometheus_data_dir}} ' /proc/mounts; then
+  echo "{{prometheus_data_dir}} allready mounted!"
+  
+  # self destroy
+  rm -f /root/firstboot.sh
+else
+  # create Linux LVM partition on attached EBS disk
+  /bin/echo -e "n\np\n1\n\n\nt\n8e\nw" | sudo fdisk {{ebs_disk_name}}
+
+  # create Physical Volume
+  pvcreate {{ebs_disk_name}}1
+
+  # create Volume Group
+  vgcreate prometheus {{ebs_disk_name}}1
+
+  # create Logical Volumes
+  lvcreate -n data -l 100%FREE prometheus
+
+  # format Logical Volume
+  mkfs.xfs /dev/prometheus/data
+
+  # add fstab mount point
+  echo "/dev/mapper/prometheus-data {{prometheus_data_dir}} xfs defaults,noatime 0 2" >> /etc/fstab
+
+  # mount added partition
+  mount -a
+
+  # change mountpoint permissions
+  chown -R {{prometheus_user}}:{{prometheus_group}} {{prometheus_data_dir}}
+
+  # restart prometheus service
+  systemctl restart prometheus
+
+  # disable firstboot systemd service
+  systemctl disable firstboot.service
+
+  # self destroy
+  rm -f /root/firstboot.sh
+fi
