@@ -16,7 +16,7 @@ Encrypted External Block Storage with termination protection will be used for st
 
     $ packer build prometheus.json
 
-After you launch you image, you need to open *Inbound Custom TCP rule* *Port Range 9090* in your security group.
+You need to open *Inbound Custom TCP rule* *Port Range 9090* in your EC2 security group.
 
 Prometheus will now be reachable at http://your_aws_ebs_public_dns:9090/.
 
