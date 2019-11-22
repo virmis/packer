@@ -1,0 +1,12 @@
+---
+
+prometheus_user: prometheus
+prometheus_group: prometheus
+ebs_disk_name: /dev/xvde
+prometheus_version: 2.14.0
+prometheus_conf_dir: /etc/prometheus
+prometheus_data_dir: /var/lib/prometheus/data
+prometheus_consoles_dir: /usr/lib64/consoles
+prometheus_console_lib_dir: /usr/lib64/console_libraries
+src_dir: /tmp/src
+src_cfg: "{{src_dir}}/prometheus-{{prometheus_version}}.linux-amd64"

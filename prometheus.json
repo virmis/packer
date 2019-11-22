@@ -26,19 +26,7 @@
     }]
   }],
   "provisioners": [{
-    "type": "shell",
-    "inline": [
-      "sudo rpm --import https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7",
-      "sudo rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm",
-      "sudo yum -y update",
-      "sudo yum -y install ansible"
-    ]
-  },
-  {
-    "type": "ansible-local",
-    "playbook_dir": "ansible",
-    "playbook_files": [
-      "ansible/prometheus/prometheus.yml"
-    ]
+    "type": "ansible",
+    "playbook_file": "./prometheus.yml"
   }]
 }
